@@ -5,7 +5,7 @@ import { AppSidebar } from '../components/layout/app-sidebar';
 import { AppHeader } from '../components/layout/app-header';
 
 export const Route = createFileRoute('/_authenticated')({
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: ({ location }) => {
     // We can't use useAuth here because it's a hook, 
     // but we can check localStorage as a first pass.
     // The component will handle the full check.

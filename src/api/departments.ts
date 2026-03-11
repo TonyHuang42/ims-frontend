@@ -19,7 +19,7 @@ export const departmentsApi = {
     return data;
   },
   deleteDepartment: async (id: number) => {
-    const { data } = await apiClient.delete(`/departments/${id}`);
+    const { data } = await apiClient.put(`/departments/${id}`, { is_active: false });
     return data;
   },
 };

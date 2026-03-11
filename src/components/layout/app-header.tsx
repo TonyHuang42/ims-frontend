@@ -6,7 +6,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/use-auth';
 import {
@@ -30,7 +29,6 @@ export function AppHeader() {
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sticky top-0 bg-background z-10">
       <SidebarTrigger className="-ml-1" />
-      {/* <Separator orientation="vertical" className="mr-2" /> */}
       <Breadcrumb className="flex-1">
         <BreadcrumbList>
           <BreadcrumbItem>

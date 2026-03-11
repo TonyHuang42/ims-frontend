@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { User, PaginatedResponse, Role } from '../types/api';
+import type { User, PaginatedResponse } from '../types/api';
 
 export const usersApi = {
   getUsers: async (params?: any) => {
@@ -11,23 +11,15 @@ export const usersApi = {
     return data;
   },
   createUser: async (userData: any) => {
-    const { data } = await apiClient.post<User>('/users', userData);
-    return data;
+    const { data } = await apiClient.post<{ data: User }>('/users', userData);
+    return data.data;
   },
   updateUser: async (id: number, userData: any) => {
-    const { data } = await apiClient.put<User>(`/users/${id}`, userData);
-    return data;
+    const { data } = await apiClient.put<{ data: User }>(`/users/${id}`, userData);
+    return data.data;
   },
   deleteUser: async (id: number) => {
-    const { data } = await apiClient.delete(`/users/${id}`);
-    return data;
-  },
-  syncUserRoles: async (id: number, roleIds: number[]) => {
-    const { data } = await apiClient.post(`/users/${id}/roles`, { role_ids: roleIds });
-    return data;
-  },
-  getUserRoles: async (id: number) => {
-    const { data } = await apiClient.get<Role[]>(`/users/${id}/roles`);
+    const { data } = await apiClient.put(`/users/${id}`, { is_active: false });
     return data;
   },
 };

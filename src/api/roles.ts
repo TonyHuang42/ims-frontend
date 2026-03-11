@@ -19,7 +19,7 @@ export const rolesApi = {
     return data;
   },
   deleteRole: async (id: number) => {
-    const { data } = await apiClient.delete(`/roles/${id}`);
+    const { data } = await apiClient.put(`/roles/${id}`, { is_active: false });
     return data;
   },
 };

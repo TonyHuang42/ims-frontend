@@ -37,8 +37,7 @@ import { useAuth } from '@/hooks/use-auth';
 const teamSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   department_id: z.string().min(1, 'Department is required'),
-  description: z.string().optional().nullable(),
-  is_active: z.boolean().default(true),
+  is_active: z.boolean(),
 });
 
 type TeamFormValues = z.infer<typeof teamSchema>;
@@ -121,7 +120,6 @@ function TeamsPage() {
     defaultValues: {
       name: '',
       department_id: '',
-      description: '',
       is_active: true,
     } as TeamFormValues,
     validators: {
@@ -141,7 +139,6 @@ function TeamsPage() {
     form.reset({
       name: team.name,
       department_id: team.department_id.toString(),
-      description: team.description || '',
       is_active: !!team.is_active,
     });
     setIsDialogOpen(true);
@@ -162,15 +159,6 @@ function TeamsPage() {
       accessorKey: 'department.name',
       header: 'Department',
       cell: ({ row }: any) => <div>{row.original.department?.name || '-'}</div>,
-    },
-    {
-      accessorKey: 'description',
-      header: 'Description',
-      cell: ({ row }: any) => (
-        <div className="max-w-[250px] truncate text-muted-foreground">
-          {row.getValue('description') || '-'}
-        </div>
-      ),
     },
     {
       accessorKey: 'is_active',
@@ -213,7 +201,7 @@ function TeamsPage() {
         </div>
         <Button onClick={() => {
           setEditingTeam(null);
-          form.reset({ name: '', department_id: '', description: '', is_active: true });
+          form.reset({ name: '', department_id: '', is_active: true });
           setIsDialogOpen(true);
         }} disabled={!isAdmin}>
           <Plus className="mr-2 h-4 w-4" /> Add Team
@@ -314,27 +302,6 @@ function TeamsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                );
-              }}
-            />
-            <form.Field
-              name="description"
-              children={(field) => {
-                const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
-                return (
-                  <Field data-invalid={isInvalid}>
-                    <FieldLabel htmlFor={field.name}>Description</FieldLabel>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value || ''}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="Team description..."
-                      aria-invalid={isInvalid}
-                    />
                     {isInvalid && <FieldError errors={field.state.meta.errors} />}
                   </Field>
                 );

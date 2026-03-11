@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isAdmin = user?.roles?.some(role => role.slug === 'admin') ?? false;
+  const isAdmin = user?.role?.name === 'admin';
 
   return (
     <AuthContext.Provider

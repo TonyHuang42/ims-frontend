@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, useStore } from '@tanstack/react-form';
+import { useForm } from '@tanstack/react-form';
 import { rolesApi } from '@/api/roles';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -28,9 +28,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 const roleSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  slug: z.string().min(2, 'Slug must be at least 2 characters'),
-  description: z.string().optional().nullable(),
-  is_active: z.boolean().default(true),
+  is_active: z.boolean(),
 });
 
 type RoleFormValues = z.infer<typeof roleSchema>;
@@ -101,8 +99,6 @@ function RolesPage() {
   const form = useForm({
     defaultValues: {
       name: '',
-      slug: '',
-      description: '',
       is_active: true,
     } as RoleFormValues,
     validators: {
@@ -117,24 +113,10 @@ function RolesPage() {
     },
   });
 
-  // Auto-generate slug from name
-  const nameValue = useStore(form.store, (state) => state.values.name);
-  useEffect(() => {
-    if (!editingRole && nameValue) {
-      const slug = nameValue
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      form.setFieldValue('slug', slug);
-    }
-  }, [nameValue, editingRole, form]);
-
   const handleEdit = (role: Role) => {
     setEditingRole(role);
     form.reset({
       name: role.name,
-      slug: role.slug,
-      description: role.description || '',
       is_active: !!role.is_active,
     });
     setIsDialogOpen(true);
@@ -150,20 +132,6 @@ function RolesPage() {
       accessorKey: 'name',
       header: 'Name',
       cell: ({ row }: any) => <div className="font-medium">{row.getValue('name')}</div>,
-    },
-    {
-      accessorKey: 'slug',
-      header: 'Slug',
-      cell: ({ row }: any) => <code className="rounded bg-muted px-1 py-0.5 text-xs">{row.getValue('slug')}</code>,
-    },
-    {
-      accessorKey: 'description',
-      header: 'Description',
-      cell: ({ row }: any) => (
-        <div className="max-w-[250px] truncate text-muted-foreground">
-          {row.getValue('description') || '-'}
-        </div>
-      ),
     },
     {
       accessorKey: 'is_active',
@@ -202,11 +170,11 @@ function RolesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Roles</h2>
-          <p className="text-muted-foreground">Manage user roles and permissions</p>
+          <p className="text-muted-foreground">Manage user roles</p>
         </div>
         <Button onClick={() => {
           setEditingRole(null);
-          form.reset({ name: '', slug: '', description: '', is_active: true });
+          form.reset({ name: '', is_active: true });
           setIsDialogOpen(true);
         }} disabled={!isAdmin}>
           <Plus className="mr-2 h-4 w-4" /> Add Role
@@ -277,49 +245,6 @@ function RolesPage() {
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
                       placeholder="Administrator"
-                      aria-invalid={isInvalid}
-                    />
-                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                );
-              }}
-            />
-            <form.Field
-              name="slug"
-              children={(field) => {
-                const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
-                return (
-                  <Field data-invalid={isInvalid}>
-                    <FieldLabel htmlFor={field.name}>Slug</FieldLabel>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="admin"
-                      disabled={!!editingRole}
-                      aria-invalid={isInvalid}
-                    />
-                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                );
-              }}
-            />
-            <form.Field
-              name="description"
-              children={(field) => {
-                const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
-                return (
-                  <Field data-invalid={isInvalid}>
-                    <FieldLabel htmlFor={field.name}>Description</FieldLabel>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value || ''}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="Role description..."
                       aria-invalid={isInvalid}
                     />
                     {isInvalid && <FieldError errors={field.state.meta.errors} />}

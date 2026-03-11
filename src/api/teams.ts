@@ -19,7 +19,7 @@ export const teamsApi = {
     return data;
   },
   deleteTeam: async (id: number) => {
-    const { data } = await apiClient.delete(`/teams/${id}`);
+    const { data } = await apiClient.put(`/teams/${id}`, { is_active: false });
     return data;
   },
 };

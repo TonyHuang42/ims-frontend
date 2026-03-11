@@ -12,7 +12,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2, Shield } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from 'sonner';
 import {
@@ -24,6 +24,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -31,10 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import * as z from 'zod';
-import type { User, Role } from '@/types/api';
+import type { User } from '@/types/api';
 import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 
@@ -42,10 +42,10 @@ const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
-  department_id: z.string().optional().nullable(),
-  team_id: z.string().optional().nullable(),
-  is_active: z.boolean().default(true),
-  role_ids: z.array(z.number()).default([]),
+  department_ids: z.array(z.number()),
+  team_ids: z.array(z.number()),
+  is_active: z.boolean(),
+  role_id: z.number().nullable(),
 });
 
 type UserFormValues = z.infer<typeof userSchema>;
@@ -66,8 +66,6 @@ function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
-  const [isRolesDialogOpen, setIsRolesDialogOpen] = useState(false);
-  const [roleManagingUser, setRoleManagingUser] = useState<User | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', page, perPage, debouncedSearch],
@@ -90,11 +88,7 @@ function UsersPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (values: UserFormValues) => usersApi.createUser({
-      ...values,
-      department_id: values.department_id ? Number(values.department_id) : null,
-      team_id: values.team_id ? Number(values.team_id) : null,
-    }),
+    mutationFn: (values: UserFormValues) => usersApi.createUser(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('User created successfully');
@@ -108,11 +102,7 @@ function UsersPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: UserFormValues }) =>
-      usersApi.updateUser(id, {
-        ...data,
-        department_id: data.department_id ? Number(data.department_id) : null,
-        team_id: data.team_id ? Number(data.team_id) : null,
-      }),
+      usersApi.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('User updated successfully');
@@ -138,29 +128,15 @@ function UsersPage() {
     },
   });
 
-  const syncRolesMutation = useMutation({
-    mutationFn: ({ id, roleIds }: { id: number; roleIds: number[] }) =>
-      usersApi.syncUserRoles(id, roleIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Roles updated successfully');
-      setIsRolesDialogOpen(false);
-      setRoleManagingUser(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update roles');
-    },
-  });
-
   const form = useForm({
     defaultValues: {
       name: '',
       email: '',
       password: '',
-      department_id: '',
-      team_id: '',
+      department_ids: [],
+      team_ids: [],
       is_active: true,
-      role_ids: [],
+      role_id: null as number | null,
     } as UserFormValues,
     validators: {
       onSubmit: userSchema,
@@ -174,7 +150,7 @@ function UsersPage() {
     },
   });
 
-  const departmentIdValue = useStore(form.store, (state) => state.values.department_id);
+  const departmentIdsValue = useStore(form.store, (state) => state.values.department_ids);
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
@@ -182,10 +158,10 @@ function UsersPage() {
       name: user.name,
       email: user.email,
       password: '',
-      department_id: user.department_id?.toString() || '',
-      team_id: user.team_id?.toString() || '',
+      department_ids: user.departments?.map(d => d.id) || [],
+      team_ids: user.teams?.map(t => t.id) || [],
       is_active: !!user.is_active,
-      role_ids: user.roles?.map(r => r.id) || [],
+      role_id: user.role?.id ?? null,
     });
     setIsDialogOpen(true);
   };
@@ -193,11 +169,6 @@ function UsersPage() {
   const handleDelete = (user: User) => {
     setDeletingUser(user);
     setIsDeleteDialogOpen(true);
-  };
-
-  const handleManageRoles = (user: User) => {
-    setRoleManagingUser(user);
-    setIsRolesDialogOpen(true);
   };
 
   const columns = [
@@ -211,27 +182,46 @@ function UsersPage() {
       header: 'Email',
     },
     {
-      accessorKey: 'department.name',
-      header: 'Department',
-      cell: ({ row }: any) => <div>{row.original.department?.name || '-'}</div>,
-    },
-    {
-      accessorKey: 'team.name',
-      header: 'Team',
-      cell: ({ row }: any) => <div>{row.original.team?.name || '-'}</div>,
-    },
-    {
-      accessorKey: 'roles',
-      header: 'Roles',
+      accessorKey: 'departments',
+      header: 'Departments',
       cell: ({ row }: any) => (
         <div className="flex flex-wrap gap-1">
-          {row.original.roles?.map((role: Role) => (
-            <Badge key={role.id} variant="outline" className="text-[10px]">
-              {role.name}
+          {row.original.departments?.map((dept: any) => (
+            <Badge key={dept.id} variant="secondary" className="text-[10px]">
+              {dept.name}
             </Badge>
           ))}
-          {!row.original.roles?.length && <span className="text-muted-foreground">-</span>}
+          {!row.original.departments?.length && <span className="text-muted-foreground">-</span>}
         </div>
+      ),
+    },
+    {
+      accessorKey: 'teams',
+      header: 'Teams',
+      cell: ({ row }: any) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.teams?.map((team: any) => (
+            <Badge key={team.id} variant="outline" className="text-[10px]">
+              {team.name}
+            </Badge>
+          ))}
+          {!row.original.teams?.length && <span className="text-muted-foreground">-</span>}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'role',
+      header: 'Role',
+      cell: ({ row }: any) => (
+        <span>
+          {row.original.role ? (
+            <Badge variant="outline" className="text-[10px]">
+              {row.original.role.name}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </span>
       ),
     },
     {
@@ -244,15 +234,6 @@ function UsersPage() {
       header: 'Actions',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleManageRoles(row.original)}
-            disabled={!isAdmin}
-            title="Manage Roles"
-          >
-            <Shield className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -280,11 +261,11 @@ function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Users</h2>
-          <p className="text-muted-foreground">Manage user accounts and permissions</p>
+          <p className="text-muted-foreground">Manage user accounts</p>
         </div>
         <Button onClick={() => {
           setEditingUser(null);
-          form.reset({ name: '', email: '', password: '', department_id: '', team_id: '', is_active: true, role_ids: [] });
+          form.reset({ name: '', email: '', password: '', department_ids: [], team_ids: [], is_active: true, role_id: null });
           setIsDialogOpen(true);
         }} disabled={!isAdmin}>
           <Plus className="mr-2 h-4 w-4" /> Add User
@@ -409,66 +390,109 @@ function UsersPage() {
             />
             <div className="grid grid-cols-2 gap-4">
               <form.Field
-                name="department_id"
+                name="department_ids"
                 children={(field) => {
                   const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Department</FieldLabel>
-                      <Select
-                        name={field.name}
-                        value={field.state.value || ''}
-                        onValueChange={field.handleChange}
-                      >
-                        <SelectTrigger id={field.name} aria-invalid={isInvalid}>
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {departmentsData?.data.map((dept) => (
-                            <SelectItem key={dept.id} value={dept.id.toString()}>
+                      <FieldLabel>Departments</FieldLabel>
+                      <div className="grid grid-cols-1 gap-2 rounded-lg border p-3 max-h-[150px] overflow-y-auto">
+                        {departmentsData?.data.map((dept) => (
+                          <div key={dept.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`dept-${dept.id}`}
+                              checked={field.state.value.includes(dept.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.handleChange([...field.state.value, dept.id]);
+                                } else {
+                                  field.handleChange(field.state.value.filter((id: number) => id !== dept.id));
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`dept-${dept.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
                               {dept.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
                     </Field>
                   );
                 }}
               />
               <form.Field
-                name="team_id"
+                name="team_ids"
                 children={(field) => {
                   const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel htmlFor={field.name}>Team</FieldLabel>
-                      <Select
-                        name={field.name}
-                        value={field.state.value || ''}
-                        onValueChange={field.handleChange}
-                      >
-                        <SelectTrigger id={field.name} aria-invalid={isInvalid}>
-                          <SelectValue placeholder="Select team" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {teamsData?.data
-                            .filter(team => !departmentIdValue || departmentIdValue === 'none' || team.department_id.toString() === departmentIdValue)
-                            .map((team) => (
-                            <SelectItem key={team.id} value={team.id.toString()}>
+                      <FieldLabel>Teams</FieldLabel>
+                      <div className="grid grid-cols-1 gap-2 rounded-lg border p-3 max-h-[150px] overflow-y-auto">
+                        {teamsData?.data
+                          .filter(team => 
+                            !departmentIdsValue?.length || 
+                            departmentIdsValue.includes(team.department_id)
+                          )
+                          .map((team) => (
+                          <div key={team.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`team-${team.id}`}
+                              checked={field.state.value.includes(team.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.handleChange([...field.state.value, team.id]);
+                                } else {
+                                  field.handleChange(field.state.value.filter((id: number) => id !== team.id));
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`team-${team.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
                               {team.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                       {isInvalid && <FieldError errors={field.state.meta.errors} />}
                     </Field>
                   );
                 }}
               />
             </div>
+            <form.Field
+              name="role_id"
+              children={(field) => {
+                const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
+                const value = field.state.value;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel>Role</FieldLabel>
+                    <Select
+                      value={value != null ? String(value) : ''}
+                      onValueChange={(v) => field.handleChange(v === '' ? null : Number(v))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rolesData?.data.map((role) => (
+                          <SelectItem key={role.id} value={String(role.id)}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                  </Field>
+                );
+              }}
+            />
             <form.Field
               name="is_active"
               children={(field) => {
@@ -500,61 +524,6 @@ function UsersPage() {
               </Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isRolesDialogOpen} onOpenChange={setIsRolesDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage Roles: {roleManagingUser?.name}</DialogTitle>
-            <DialogDescription>
-              Select the roles to assign to this user.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {rolesData?.data.map((role) => (
-              <div key={role.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`role-${role.id}`}
-                  checked={roleManagingUser?.roles?.some(r => r.id === role.id)}
-                  onCheckedChange={(checked) => {
-                    const currentRoles = roleManagingUser?.roles || [];
-                    let newRoles;
-                    if (checked) {
-                      newRoles = [...currentRoles, role];
-                    } else {
-                      newRoles = currentRoles.filter(r => r.id !== role.id);
-                    }
-                    setRoleManagingUser(prev => prev ? { ...prev, roles: newRoles } : null);
-                  }}
-                />
-                <label
-                  htmlFor={`role-${role.id}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {role.name}
-                </label>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRolesDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (roleManagingUser) {
-                  syncRolesMutation.mutate({
-                    id: roleManagingUser.id,
-                    roleIds: roleManagingUser.roles?.map(r => r.id) || []
-                  });
-                }
-              }}
-              disabled={syncRolesMutation.isPending}
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

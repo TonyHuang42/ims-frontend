@@ -28,8 +28,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 const departmentSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  description: z.string().optional().nullable(),
-  is_active: z.boolean().default(true),
+  is_active: z.boolean(),
 });
 
 type DepartmentFormValues = z.infer<typeof departmentSchema>;
@@ -100,7 +99,6 @@ function DepartmentsPage() {
   const form = useForm({
     defaultValues: {
       name: '',
-      description: '',
       is_active: true,
     } as DepartmentFormValues,
     validators: {
@@ -119,7 +117,6 @@ function DepartmentsPage() {
     setEditingDepartment(dept);
     form.reset({
       name: dept.name,
-      description: dept.description || '',
       is_active: !!dept.is_active,
     });
     setIsDialogOpen(true);
@@ -135,15 +132,6 @@ function DepartmentsPage() {
       accessorKey: 'name',
       header: 'Name',
       cell: ({ row }: any) => <div className="font-medium">{row.getValue('name')}</div>,
-    },
-    {
-      accessorKey: 'description',
-      header: 'Description',
-      cell: ({ row }: any) => (
-        <div className="max-w-[300px] truncate text-muted-foreground">
-          {row.getValue('description') || '-'}
-        </div>
-      ),
     },
     {
       accessorKey: 'is_active',
@@ -186,7 +174,7 @@ function DepartmentsPage() {
         </div>
         <Button onClick={() => {
           setEditingDepartment(null);
-          form.reset({ name: '', description: '', is_active: true });
+          form.reset({ name: '', is_active: true });
           setIsDialogOpen(true);
         }} disabled={!isAdmin}>
           <Plus className="mr-2 h-4 w-4" /> Add Department
@@ -257,27 +245,6 @@ function DepartmentsPage() {
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
                       placeholder="Engineering"
-                      aria-invalid={isInvalid}
-                    />
-                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                  </Field>
-                );
-              }}
-            />
-            <form.Field
-              name="description"
-              children={(field) => {
-                const isInvalid = field.state.meta.isTouched && !!field.state.meta.errors.length;
-                return (
-                  <Field data-invalid={isInvalid}>
-                    <FieldLabel htmlFor={field.name}>Description</FieldLabel>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value || ''}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="Department description..."
                       aria-invalid={isInvalid}
                     />
                     {isInvalid && <FieldError errors={field.state.meta.errors} />}

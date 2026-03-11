@@ -3,11 +3,9 @@ export interface User {
   name: string;
   email: string;
   is_active: boolean;
-  department_id: number | null;
-  team_id: number | null;
-  department?: Department | null;
-  team?: Team | null;
-  roles?: Role[];
+  departments?: Department[];
+  teams?: Team[];
+  role?: Role | null;
   created_at: string;
   updated_at: string;
 }
@@ -15,7 +13,6 @@ export interface User {
 export interface Department {
   id: number;
   name: string;
-  description: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -25,7 +22,6 @@ export interface Team {
   id: number;
   name: string;
   department_id: number;
-  description: string | null;
   is_active: boolean;
   department?: Department | null;
   created_at: string;
@@ -35,8 +31,6 @@ export interface Team {
 export interface Role {
   id: number;
   name: string;
-  slug: string;
-  description: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
