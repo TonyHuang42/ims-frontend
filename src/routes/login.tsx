@@ -48,7 +48,7 @@ function LoginPage() {
         toast.success('Logged in successfully');
         navigate({ to: '/' });
       } catch (error: any) {
-        const message = error.response?.data?.message || 'Invalid credentials';
+        const message = error.response?.data?.error || error.response?.data?.message || 'Invalid credentials';
         toast.error(message);
       } finally {
         setIsLoading(false);

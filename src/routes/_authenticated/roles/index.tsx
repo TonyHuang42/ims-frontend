@@ -6,10 +6,9 @@ import { rolesApi } from '@/api/roles';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from 'sonner';
 import {
@@ -47,8 +46,6 @@ function RolesPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingRole, setDeletingRole] = useState<Role | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['roles', page, perPage, debouncedSearch],
@@ -83,19 +80,6 @@ function RolesPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: rolesApi.deleteRole,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
-      toast.success('Role deleted successfully');
-      setIsDialogOpen(false);
-      setDeletingRole(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete role');
-    },
-  });
-
   const form = useForm({
     defaultValues: {
       name: '',
@@ -115,16 +99,9 @@ function RolesPage() {
 
   const handleEdit = (role: Role) => {
     setEditingRole(role);
-    form.reset({
-      name: role.name,
-      is_active: !!role.is_active,
-    });
+    form.setFieldValue('name', role.name);
+    form.setFieldValue('is_active', !!role.is_active);
     setIsDialogOpen(true);
-  };
-
-  const handleDelete = (role: Role) => {
-    setDeletingRole(role);
-    setIsDeleteDialogOpen(true);
   };
 
   const columns = [
@@ -139,8 +116,8 @@ function RolesPage() {
       cell: ({ row }: any) => <StatusBadge isActive={!!row.getValue('is_active')} />,
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: 'Edit',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-2">
           <Button
@@ -150,15 +127,6 @@ function RolesPage() {
             disabled={!isAdmin}
           >
             <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original)}
-            disabled={!isAdmin}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -285,15 +253,6 @@ function RolesPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => deletingRole && deleteMutation.mutate(deletingRole.id)}
-        title="Delete Role"
-        description={`Are you sure you want to delete the role "${deletingRole?.name}"? This action cannot be undone.`}
-        isLoading={deleteMutation.isPending}
-      />
     </div>
   );
 }

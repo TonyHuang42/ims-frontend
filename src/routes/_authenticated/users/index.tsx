@@ -9,10 +9,9 @@ import { rolesApi } from '@/api/roles';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from 'sonner';
 import {
@@ -64,8 +63,6 @@ function UsersPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', page, perPage, debouncedSearch],
@@ -115,19 +112,6 @@ function UsersPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: usersApi.deleteUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('User deleted successfully');
-      setIsDeleteDialogOpen(false);
-      setDeletingUser(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete user');
-    },
-  });
-
   const form = useForm({
     defaultValues: {
       name: '',
@@ -142,10 +126,17 @@ function UsersPage() {
       onSubmit: userSchema,
     },
     onSubmit: async ({ value }) => {
+      const payload: UserFormValues = { ...value };
+
+      // When editing, omit password if left empty so backend 'sometimes' rule ignores it
+      if (editingUser && (!payload.password || payload.password === '')) {
+        delete payload.password;
+      }
+
       if (editingUser) {
-        updateMutation.mutate({ id: editingUser.id, data: value });
+        updateMutation.mutate({ id: editingUser.id, data: payload });
       } else {
-        createMutation.mutate(value);
+        createMutation.mutate(payload);
       }
     },
   });
@@ -154,21 +145,14 @@ function UsersPage() {
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
-    form.reset({
-      name: user.name,
-      email: user.email,
-      password: '',
-      department_ids: user.departments?.map(d => d.id) || [],
-      team_ids: user.teams?.map(t => t.id) || [],
-      is_active: !!user.is_active,
-      role_id: user.role?.id ?? null,
-    });
+    form.setFieldValue('name', user.name);
+    form.setFieldValue('email', user.email);
+    form.setFieldValue('password', '');
+    form.setFieldValue('department_ids', user.departments?.map((d) => d.id) || []);
+    form.setFieldValue('team_ids', user.teams?.map((t) => t.id) || []);
+    form.setFieldValue('is_active', !!user.is_active);
+    form.setFieldValue('role_id', user.role?.id ?? null);
     setIsDialogOpen(true);
-  };
-
-  const handleDelete = (user: User) => {
-    setDeletingUser(user);
-    setIsDeleteDialogOpen(true);
   };
 
   const columns = [
@@ -230,8 +214,8 @@ function UsersPage() {
       cell: ({ row }: any) => <StatusBadge isActive={!!row.getValue('is_active')} />,
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: 'Edit',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-2">
           <Button
@@ -241,15 +225,6 @@ function UsersPage() {
             disabled={!isAdmin}
           >
             <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original)}
-            disabled={!isAdmin}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -526,15 +501,6 @@ function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => deletingUser && deleteMutation.mutate(deletingUser.id)}
-        title="Delete User"
-        description={`Are you sure you want to delete the user "${deletingUser?.name}"? This action cannot be undone.`}
-        isLoading={deleteMutation.isPending}
-      />
     </div>
   );
 }

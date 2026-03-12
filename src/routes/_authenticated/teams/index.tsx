@@ -7,10 +7,9 @@ import { departmentsApi } from '@/api/departments';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from 'sonner';
 import {
@@ -56,8 +55,6 @@ function TeamsPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingTeam, setDeletingTeam] = useState<Team | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['teams', page, perPage, debouncedSearch],
@@ -103,19 +100,6 @@ function TeamsPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: teamsApi.deleteTeam,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
-      toast.success('Team deleted successfully');
-      setIsDialogOpen(false);
-      setDeletingTeam(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete team');
-    },
-  });
-
   const form = useForm({
     defaultValues: {
       name: '',
@@ -136,17 +120,10 @@ function TeamsPage() {
 
   const handleEdit = (team: Team) => {
     setEditingTeam(team);
-    form.reset({
-      name: team.name,
-      department_id: team.department_id.toString(),
-      is_active: !!team.is_active,
-    });
+    form.setFieldValue('name', team.name);
+    form.setFieldValue('department_id', team.department_id.toString());
+    form.setFieldValue('is_active', !!team.is_active);
     setIsDialogOpen(true);
-  };
-
-  const handleDelete = (team: Team) => {
-    setDeletingTeam(team);
-    setIsDeleteDialogOpen(true);
   };
 
   const columns = [
@@ -166,8 +143,8 @@ function TeamsPage() {
       cell: ({ row }: any) => <StatusBadge isActive={!!row.getValue('is_active')} />,
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: 'Edit',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-2">
           <Button
@@ -177,15 +154,6 @@ function TeamsPage() {
             disabled={!isAdmin}
           >
             <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original)}
-            disabled={!isAdmin}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -340,15 +308,6 @@ function TeamsPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => deletingTeam && deleteMutation.mutate(deletingTeam.id)}
-        title="Delete Team"
-        description={`Are you sure you want to delete the team "${deletingTeam?.name}"? This action cannot be undone.`}
-        isLoading={deleteMutation.isPending}
-      />
     </div>
   );
 }

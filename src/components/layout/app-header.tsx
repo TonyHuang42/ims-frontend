@@ -27,7 +27,7 @@ export function AppHeader() {
   const pathSegments = location.pathname.split('/').filter(Boolean);
   
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sticky top-0 bg-background z-10">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sticky top-0 bg-background">
       <SidebarTrigger className="-ml-1" />
       <Breadcrumb className="flex-1">
         <BreadcrumbList>

@@ -49,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(null);
       queryClient.setQueryData(['auth-me'], null);
       queryClient.clear();
+      window.location.href = '/login';
     }
   };
 

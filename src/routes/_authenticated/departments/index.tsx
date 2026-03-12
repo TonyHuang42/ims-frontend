@@ -6,10 +6,9 @@ import { departmentsApi } from '@/api/departments';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from 'sonner';
 import {
@@ -47,8 +46,6 @@ function DepartmentsPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['departments', page, perPage, debouncedSearch],
@@ -83,19 +80,6 @@ function DepartmentsPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: departmentsApi.deleteDepartment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departments'] });
-      toast.success('Department deleted successfully');
-      setIsDeleteDialogOpen(false);
-      setDeletingDepartment(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete department');
-    },
-  });
-
   const form = useForm({
     defaultValues: {
       name: '',
@@ -115,16 +99,9 @@ function DepartmentsPage() {
 
   const handleEdit = (dept: Department) => {
     setEditingDepartment(dept);
-    form.reset({
-      name: dept.name,
-      is_active: !!dept.is_active,
-    });
+    form.setFieldValue('name', dept.name);
+    form.setFieldValue('is_active', !!dept.is_active);
     setIsDialogOpen(true);
-  };
-
-  const handleDelete = (dept: Department) => {
-    setDeletingDepartment(dept);
-    setIsDeleteDialogOpen(true);
   };
 
   const columns = [
@@ -139,8 +116,8 @@ function DepartmentsPage() {
       cell: ({ row }: any) => <StatusBadge isActive={!!row.getValue('is_active')} />,
     },
     {
-      id: 'actions',
-      header: 'Actions',
+      id: 'edit',
+      header: 'Edit',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-2">
           <Button
@@ -150,15 +127,6 @@ function DepartmentsPage() {
             disabled={!isAdmin}
           >
             <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original)}
-            disabled={!isAdmin}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -285,15 +253,6 @@ function DepartmentsPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={() => deletingDepartment && deleteMutation.mutate(deletingDepartment.id)}
-        title="Delete Department"
-        description={`Are you sure you want to delete the department "${deletingDepartment?.name}"? This action cannot be undone.`}
-        isLoading={deleteMutation.isPending}
-      />
     </div>
   );
 }

@@ -25,6 +25,13 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -45,3 +52,13 @@ const localStorageMock = (() => {
   };
 })();
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+if (!('hasPointerCapture' in Element.prototype)) {
+  (Element.prototype as any).hasPointerCapture = () => false;
+  (Element.prototype as any).releasePointerCapture = () => {};
+}
+
+if (!Element.prototype.scrollIntoView) {
+  // jsdom does not implement scrollIntoView, but Radix Select relies on it
+  Element.prototype.scrollIntoView = () => {};
+}
